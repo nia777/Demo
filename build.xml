@@ -1,0 +1,126 @@
+<?xml version="1.0"?>
+<!-- The xlmns tag imports jacoco / bounding jacoco commands -->
+<project name="Ant-Main" default="Main" basedir="." xmlns:jacoco="jacoco.ant">
+	<!-- The succeeding property tags sets variables which can later be used. -->
+	<!-- The value of a property is accessed via ${} -->
+	<property name="src.dir" location="src" /> <!-- This is where all the source codes are stored. -->
+	<property name="lib.dir" location="lib" /> <!-- This is where the important jar files such as jUnit and jacoco are stored. -->
+	<property name="dist.dir" location="dist" /> <!-- This is where the jar file containing the classes and a Manifest file is stored. -->
+	<property name="docs.dir" location="doc" /> <!-- This is where the generated documentation is stored. -->
+	<property name="build.dir" location="bin" /> <!-- This is where the classes are stored along with jacoco.exec -->
+	<property name="test.report.dir" location="test report" /> <!-- This is where the results of the Unit testing is generated. -->
+	<property name="cov.dir" location="coverage" /> <!-- This contains the generated results of Code Coverage -->
+	<property name="exec.file" location="bin/jacoco.exec" /> <!-- This is the location of jacoco.exec to be executed for code coverage  -->
+
+	<!-- Task Definition of the imported jacoco	-->
+	<taskdef uri="jacoco.ant" resource="org/jacoco/ant/antlib.xml">
+		<classpath path="${basedir}/lib/jacocoant.jar" />
+	</taskdef>
+
+	<!-- Class Path: This is where the jar files needed for JUnit testing is accessed. -->
+	<path id="classpath">
+		<pathelement location="lib/junit-4.12.jar" />
+		<pathelement location="lib/hamcrest-core-1.3.jar" />
+		<pathelement location="${build.dir}" />
+	</path>
+
+	<!-- Deletes the existing build directory-->
+	<target name="clean">
+		<delete dir="${build.dir}" />
+		<delete dir="${docs.dir}" />
+		<delete dir="${dist.dir}" />
+		<delete dir="${test.report.dir}" />
+		<delete dir="${cov.dir}" />
+	</target>
+
+	<!-- Creates the Directories -->
+	<target name="makedir" depends="clean">
+		<mkdir dir="${build.dir}" />
+		<mkdir dir="${docs.dir}" />
+		<mkdir dir="${dist.dir}" />
+		<mkdir dir="${test.report.dir}" />
+		<mkdir dir="${cov.dir}" />
+	</target>
+	
+	<!-- Compiles the java code -->
+	<target name="compile" depends="makedir">
+		<javac includeantruntime="false" srcdir="${src.dir}" destdir="${build.dir}">
+			<classpath refid="classpath" /> 
+		</javac>
+	</target>
+
+	<!-- Creates Javadoc -->
+	<target name="docs" depends="compile">
+		<javadoc packagenames="src" sourcepath="${src.dir}" destdir="${docs.dir}" classpathref="classpath">
+			<!-- Define which files / directory should get included, we include all -->
+			<fileset dir="${src.dir}">
+				<include name="**" />
+			</fileset>
+		</javadoc>
+	</target>
+
+	<!--Creates a deployable jar file  -->													
+	<target name="jar" depends="compile">
+		<jar destfile="${dist.dir}\${ant.project.name}.jar" basedir="${build.dir}">
+			<manifest>
+				<attribute name="Specification-Title" value="Programming Applications Lab Project"/>
+				<attribute name="Specification-Version" value="${version}"/>
+				<attribute name="Implementation-Title" value="Build File"/>
+				<attribute name="Implementation-Version" value="${version} ${TODAY}"/> 
+				<attribute name="Main-Class" value="${main-class}" />
+			</manifest>
+		</jar>
+	</target>
+
+	<!-- Run the JUnit Tests and the nested code coverage -->
+	<!-- Output is xml text for Unit Testing-->
+	<target name="unitTest" depends="compile">
+		<jacoco:coverage destfile="${exec.file}">
+			<junit printsummary="on" fork="true" haltonfailure="yes">
+				<classpath> 
+					<path refid="classpath" />
+					<path location="${build.dir}"/>
+				</classpath>
+				<formatter type="xml" />		
+				<batchtest todir="${test.report.dir}">
+					<fileset dir="${build.dir}">
+						<include name="**/*Test*.class" />
+					</fileset>
+				</batchtest>
+			</junit>
+		</jacoco:coverage>
+	</target>
+		
+	 
+
+	<!-- Unit testing report and Code coverage report -->
+	<target name="report" depends="unitTest">
+	
+		<!-- Unit testing report  -->					
+		<junitreport todir="${test.report.dir}">
+            <fileset dir="${test.report.dir}">
+                <include name="**/*.xml"/>		<!-- This will find the xml created by JUnit as a reference for the html file -->
+             </fileset>
+             <report format="frames" todir="${test.report.dir}/html"/> <!-- This is the HTML output generated from the xml file.  -->
+        </junitreport>
+				
+		<!--Code coverage report -->
+		<jacoco:report>
+			<executiondata> 							<!--Execution data will find the file created by jacoco the "jacoco.exec"-->
+				<file file="${exec.file}" />
+			</executiondata>
+			<structure name="Code Coverage">		
+				<classfiles>
+					<fileset dir="${build.dir}" />
+				</classfiles>
+			</structure>
+		<!-- Creating reports in an html format. -->
+			<html destdir="${cov.dir}/html" />	
+		</jacoco:report>
+	</target>
+
+	<target name="Main" depends="compile, jar, docs, unitTest, report">
+		<description>Main target: This allows everything to be executed by just typing 'ant' in the CLI.</description>
+	</target>
+
+</project>
